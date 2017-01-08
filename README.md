@@ -2,11 +2,11 @@
 Organize a bunch of Raspberry Pis for a home automation.
 
 **-bewegungssensor.py--** <br>
-This file setup all the gpios which are assigned to use with motion sensors (e.g. via pi-setup.sh) and add event detection services for each one. Then the script sleeps until a event will rise. Then the event is send via (wsdl api) curl to the master-pi (where openHAB is running).
+This file setup all the gpios which are assigned to use with motion sensors (e.g. via pi-setup.sh) and add event detection services for each one. Then the script sleeps until a event will rise. Then the event is send via (rest api) curl to the master-pi (where openHAB is running).
 
 **------dht22.py-------**<br>
 This file should be started at each pi where the dht22 sensors are attached at gpios.
-The script reads all 60 seconds the temperature and humidity and send these information via (wsdl api) curl to the master-pi (where openHAB is running).
+The script reads all 60 seconds the temperature and humidity and send these information via (rest api) curl to the master-pi (where openHAB is running).
 
 **-----pi-setup.sh-----** <br>
 This file helps you to setup all your Pis within the project.<br>
