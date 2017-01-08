@@ -1,6 +1,12 @@
 # myPiProject
 Organize a bunch of Raspberry Pis for a home automation.
 
+**-bewegungssensor.py--** <br>
+This file setup all the gpios which are assigned to use with motion sensors (e.g. via pi-setup.sh) and add event detection services for each one. Then the script sleeps until a event will rise. Then the event is send via (wsdl api) curl to the master-pi (where openHAB is running).
+
+**------dht22.py-------**<br>
+This file should be started at each pi where the dht22 sensors are attached at gpios.
+The script reads all 60 seconds the temperature and humidity and send these information via (wsdl api) curl to the master-pi (where openHAB is running).
 
 **-----pi-setup.sh-----** <br>
 This file helps you to setup all your Pis within the project.<br>
@@ -23,3 +29,9 @@ This file helps you to setup all your Pis within the project.<br>
 
 **KNOWN ERRORS**
 - Not able to remove the last item of DHT22 and BEWEGUNGSSENSOR
+
+**Comming soon**
+- Outsource the password and ssid information from pi-setup.sh file
+- Outsource the network information in to an environment variable and make it configurable
+- Merge dht22.py and bewegungssensor.py to a pi-slave.py file
+- Add further sensors 
