@@ -1,5 +1,7 @@
 # myPiProject
 Organize a bunch of Raspberry Pis for a home automation.
+<img src=http://52.59.16.91:8080/wp-content/uploads/2017/01/The-Pi-Project.png alt="The-Pi-Project" style="width:200px;height:228px;">
+ 
 
 **-bewegungssensor.py--** <br>
 This file setup all the gpios which are assigned to use with motion sensors (e.g. via pi-setup.sh) and add event detection services for each one. Then the script sleeps until a event will rise. Then the event is send via (rest api) curl to the master-pi (where openHAB is running).
