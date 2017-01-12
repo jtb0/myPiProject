@@ -2,17 +2,20 @@
 DATE=`date +%Y-%m-%d:%H:%M:%S`
 
 # Prüfen, ob bereits eine Einrichtung stattgefunden hat und ob eine Umgebungsvariable EBENE gesetzt ist
-if [ -z "$EBENE" ]
-	then
+EBENE=stage
+if ! grep -q $EBENE /etc/pi-setup/pi.cfg
+        then # Wenn nein
 		echo "System ist noch nicht für eine Ebene eingerichtet"
 		initialisiert=false
-		echo "initialisiert="$initialisiert
-	else 
-		echo 'System ist aktuell für Ebene ' $EBENE ' eingerichtet'
+		echo "initialisiert="$initialisiert>&2
+        else
+		lade_Konfiguration ${EBENE}
+		echo ${WERT}	
+		echo 'System ist aktuell für Ebene ' $WERT ' eingerichtet'
 		initialisiert=true
-		echo "initialisiert="$initialisiert
-fi
+		echo "initialisiert="$initialisiert>&2
 
+fi
 
 menue (){
 echo "###########################################################################"
@@ -23,6 +26,7 @@ echo "##########################################################################
 echo ""
 echo "Um eine konkurrierende Adressvergaben zu vermeiden, wird empfohlen, den DHCP Client Deamon aus zu schalten. Wird dies nicht getan, kann ein Interface mehrere IP-Adressen zugewiesen bekommen. Dies kann zu Problemen führen. Wenn DHCP nicht zwingend benötigt wird, wird empfohlen diesen zu deaktivieren."
 echo ""
+lade_Konfiguration "stage"
 echo "Was soll getan werden?
 (e)bene einrichten / ändern
 (n)etzwerk einrichten
@@ -31,10 +35,11 @@ echo "Was soll getan werden?
 System(u)pdate durchführen
 (l)uftfeuchte und Temperatursensor einrichten / verwalten
 (b)ewegungssensor einrichten / verwalten
+(r)elais einrichten / verwalten
 (f)irmwareupdate durchführen
 Syntax(h)ighliting einschalten
 (s)sh einrichten (Zertifikat wird erstellt und Zugriff über Passwort wird verboten)
-na(m)e anpassen in pi-e${EBENE}
+na(m)e anpassen in pi-e${WERT}
 E(x)it:"
 read todo
 
@@ -43,8 +48,8 @@ case "$todo" in
         Ebene_aendern
 	;;
 	n)
-	if [ initialisiert ]; then Netzwerk_Einrichten $EBENE; else print "Zuerst muss das System für eine Ebene initialisiert werden!";fi
-	#Netzwerk_Einrichten $EBENE
+	lade_Konfiguration "stage"
+	if [ initialisiert ]; then Netzwerk_Einrichten $WERT; else print "Zuerst muss das System für eine Ebene initialisiert werden!";fi
 	;;
 	d)
 	DHCPCD_deaktivieren
@@ -61,6 +66,9 @@ case "$todo" in
         b) echo "Der Bewegungssensor wird eingerichtet..."
 	Device_verwalten "bewegungssensor" ""
 	;;
+        b) echo "Das Relais wird eingerichtet"
+	Device_verwalten "relais" "zum schalten externer Geräte"
+	;;
 	f) echo "Aktualisiere die Firmware ..."
 	Firmwareupdate_einrichten
 	;;
@@ -75,7 +83,8 @@ case "$todo" in
 	ssh_einrichten
 	;;
 	m)
-	if [ initialisiert ]; then Name_anpassen $EBENE; else print "Zuerst muss das System für eine Ebene initialisiert werden!";fi
+	lade_Konfiguration "stage"
+	if [ initialisiert ]; then Name_anpassen $WERT; else print "Zuerst muss das System für eine Ebene initialisiert werden!";fi
 	;;
 	x)
 	exit 0
@@ -83,7 +92,7 @@ case "$todo" in
 esac
 }
 	
-
+#TODO: auf conffile umstellen
 Ebene_aendern (){
 	echo "Bitte die Ebene des Hauses angeben, in dem der PI verwendet werden soll(für die Zentrale bitte die 9 angeben oder q zum Beenden)"
 	read -p " Nummer :" Ebene
@@ -91,7 +100,7 @@ Ebene_aendern (){
 
 	if [ $initialisiert = true ]
 		then
-			echo "Eintrag der neuen Ebene wurde in .profile eingetragen"
+			echo "Eintrag der neuen Ebene wurde in todo  eingetragen"
 			#Ersetze die Nummer der Ebene 
 			export EBENE=$Ebene
 			sed -i 's/EBENE.*$/EBENE='$Ebene'/' /home/pi/.profile
@@ -148,7 +157,6 @@ fi
 # Zur Sicherheit noch Passwortauthentifizierung ausschalten
 sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config-$DATE.orig
 echo "die original Datei wurde unter folgendem Namen gespeichert: /etc/ssh/sshd_config-${DATE}.orig"
-#echo "nun bitte noch die Passwort Authentifizierung in der Datei \"/etc/ssh/sshd_conf\" den Wert \"PasswordAuthentication\" auf \"no\" stellen um ein einloggen ohne Zertifikat zu verhindern" 
 
 sudo sed -i 's/#PasswordAuthentication yes$/PasswordAuthentication no/' /etc/ssh/sshd_config
 sudo sed -i 's/PasswordAuthentication yes$/PasswordAuthentication no/' /etc/ssh/sshd_config
@@ -176,10 +184,6 @@ echo "Firmwareupdate wird durchgeführt ..."
 PAKET="git"
 Paket_installieren $PAKET
 
-#PAKET="rpi-update"
-#Paket_installieren $PAKET
-
-#if [ ! -f /usr/bin/git ];then sudo apt-get install git;else echo "git ist bereits installiert";fi
 if [ ! -f /usr/bin/rpi-update ]
 	then 
 		sudo wget https://raw.github.com/Hexxeh/rpi-update/master/rpi-update -O /usr/bin/rpi-update && sudo chmod +x /usr/bin/rpi-update
@@ -201,8 +205,6 @@ sudo hostname -F /etc/hostname
 sudo cp /etc/hosts /etc/hosts-$DATE.orig
 echo "die original Datei wurde unter folgendem Namen gespeichert: /etc/hosts-${DATE}.orig"
 sudo sed -i "s/127.0.1.1.*$/127.0.1.1	pi-e${EBENE}/" /etc/hosts
-#sudo bash -c 'echo "# Eintrag durch pi-setup.sh by Marcel Just" >>/etc/hosts'
-#sudo bash -c 'echo "127.0.1.1	pi-e${EBENE}" >>/etc/hosts'
 }
 
 
@@ -235,18 +237,10 @@ dns-nameservers '$NETZWERK'1\n
 auto eth0\n
 allow-hotplug eth0\n
 iface eth0 inet static\n
-address 192.168.0.'$1'0\n
-gateway 192.168.0.1\n
-dns-nameservers 192.168.0.1\n
-\n
-# Ethernet\n
-auto eth0\n
-allow-hotplug eth0\n
-iface eth0 inet static\n
-address 192.168.0.'$1'0\n
+address '$NETZWERK''$1'0\n
 netmask 255.255.255.0\n
-gateway 192.168.0.1\n
-dns-nameservers 192.168.0.1\n
+gateway '$NETZWERK'1\n
+dns-nameservers '$NETZWERK'1\n
 ' 
 sudo echo -e $Text | sudo tee -a /etc/network/interfaces
 }
@@ -262,35 +256,6 @@ sudo service networking restart
 }
 
 
-Bewegungssensor_verwalten () {
-if [ -z "$BEWEGUNGSSENSOR" ]
-	then 
-		echo "Aktuell ist noch kein Pin für den Gebrauch mit einem Bewegungssensor eingerichtet"
-	else	
-		echo "Aktuell sind folgende Pins für den Gebrauch mit einem Bewegungssensor eingerichtet:"
-		echo $BEWEGUNGSSENSOR	
-fi
-
-read -p "Möchten Sie (n)eue Sensoren hinzufügen, vorhandene (e)ntfernen oder (z)urück?: " todo
-case "$todo" in
-        n)
-        Pin_belegen "BEWEGUNGSSENSOR"
-        ;;
-	e)
-        Pin_entfernen "BEWEGUNGSSENSOR" 
-	;;
-	a)
-	# nur test
-	echo "Lade Config File..." >&2 . /etc/pi-setup/pi.cfg
-	echo "Config $network" >&2
-	;;
-	z)
-	menue
-	;;
-esac
-}
-
-
 Device_verwalten () {
 DHT22_installieren
 DEVICE=$1
@@ -298,7 +263,7 @@ DETAIL=$2
 # Prüft, ob ein Eintrag für das Device existiert
 if ! grep -q $DEVICE /etc/pi-setup/pi.cfg
         then # Wenn nein
-                echo "Die Variable existiert nicht. Es ist kein Pin ${DEVICE} zugeordnet."
+                echo "Die Variable existiert nicht. Es ist kein Pin ${DEVICE} ${DETAILS} zugeordnet."
         else
 		echo "Aktuell sind folgende Pins für den Gebrauch mit einem ${DEVICE} ${DETAILS} eingerichtet:"
 		lade_Konfiguration ${DEVICE}
@@ -319,28 +284,6 @@ case "$todo" in
 esac
 }
 
-relais_verwalten () {
-if [ -z "$RELAIS" ]
-	then 
-		echo "Aktuell ist noch kein Pin für den Gebrauch mit einem Relais eingerichtet"
-	else	
-		echo "Aktuell sind folgende Pins für den Gebrauch mit einem Relais eingerichtet:"
-		echo $RELAIS	
-fi
-
-read -p "Möchten Sie (n)eue Aktoren hinzufügen, vorhandene (e)ntfernen oder (z)urück?: " todo
-case "$todo" in
-        n)
-        Pin_belegen "RELAIS"
-        ;;
-	e)
-        Pin_entfernen "RELAIS" 
-	;;
-	z)
-	menue
-	;;
-esac
-}
 
 lade_Konfiguration (){
 VARIABLE=$1
@@ -354,61 +297,32 @@ WERT=${!VARIABLE} >&2
 Pin_entfernen (){
 DEVICE=$1
 #Neustart_notwendig
-read -p "An welchen Pin soll das neue Gerät angeschlossen werden (Physikalische Notation) ?" pin
 # Prüft, ob ein Eintrag für das Device existiert
+#TODO LEERE prüfung ist noch an zu passen
 if ! grep -q $DEVICE /etc/pi-setup/pi.cfg
         then # Wenn nein
                 echo "Die Variable existiert nicht. Es ist kein Pin ${DEVICE} zugeordnet."
         else
 		lade_Konfiguration ${DEVICE}
-		#echo "Lade Config File..." >&2
-		#source /etc/pi-setup/pi.cfg
-		## Bereits eingetragene Pins auslesen
-		#LISTE=${!DEVICE} >&2
 		read -p "Welcher Pin soll aus der Liste entfernt werden (Physikalische Notation) ?" pin
 		# Inhalt in eine Datei schreiben
-		#echo ${LISTE} > old
 		echo ${WERT} > old
 		# Nach der <pinnummer> als erster Wert suchen und löschen oder ...
 		sed "s/^$pin://"< old>new
 		cp new old
-		# ... nach :<pinnummer> suchen und löschen
-		sed "s/:$pin//"< old>new
-		# Neuer Wert aus Datei in Umgebungsvariable schreiben
+		# ... nach :<pinnummer> in der mitte suchen und löschen oder ...
+		sed "s/:$pin:/:/"< old>new
+		# ... wenn nur ein Eintrag vorhanden ist oder ...
+		sed "s/^$pin$//"< old>new
+		# ... nach der <pinnummer> als letzten Wert suchen und löschen
+		sed "s/:$pin$//"< old>new
+		# Neuer Wert aus Datei in das config File schreiben
 		text="${DEVICE}=$(cat new)"
                 # Ersetzt die Variable durch den geänderten Eintrag
 		sudo sed -i 's/'$DEVICE'.*$/'$DEVICE'='$(cat new)'/' /etc/pi-setup/pi.cfg
 		rm old, new
 fi
 }
-
-
-# Auskommentierte Version, die die Umgebungsvariable nutzt
-#Pin_entfernen (){
-#UVAR=$1
-#Neustart_notwendig
-#if [ -z "${!UVAR}" ]
-#        then
-#                echo "Die Variable existiert nicht. Es ist kein Pin ${UVAR} zugeordnet."
-#        else
-#		read -p "Welcher Pin soll aus der Liste entfernt werden (Physikalische Notation) ?" pin
-#		# Inhalt in eine Datei schreiben
-#		echo ${!UVAR} > old
-#		# Nach der <pinnummer> als erster Wert suchen und löschen oder ...
-#		sed "s/^$pin://"< old>new
-#		cp new old
-#		# ... nach :<pinnummer> suchen und löschen
-#		sed "s/:$pin//"< old>new
-#		# Neuer Wert aus Datei in Umgebungsvariable schreiben
-#		text="${UVAR}=$(cat new)"
-#		export $text
-#                # Ersetzt die Variable durch den geänderten Eintrag
-#		sed -i 's/'$UVAR'.*$/'$text'/' /home/pi/.profile
-#fi
-## Dafür sorgen, dass geänderte Umgebungsvariable in der aktuellen Sitzung bekannt sind
-#source ~/.profile
-#
-#}
 
 
 Neustart_notwendig (){
