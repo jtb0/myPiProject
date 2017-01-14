@@ -2,24 +2,6 @@
 DATE=`date +%Y-%m-%d:%H:%M:%S`
 CONFFILE="/etc/pi-setup/pi.cfg"
 
-# Prüfen, ob bereits eine Einrichtung stattgefunden hat und ob eine Variable "stage" gesetzt ist
-init (){
-EBENE=stage
-lese_Wert ${EBENE}
-# Prüft, ob ein Eintrag für das Device existiert
-if grep ^${EBENE}[=][0-9]?* /etc/pi-setup/pi.cfg
-        then # Variable ist gesetzt
-		lese_Wert ${EBENE}
-		echo 'System ist aktuell für Ebene ' $WERT ' eingerichtet'
-		initialisiert=true
-		echo "initialisiert="$initialisiert>&2
-        else
-		echo "System ist noch nicht für eine Ebene eingerichtet"
-		initialisiert=false
-		echo "initialisiert="$initialisiert>&2
-fi
-}
-
 
 menue (){
 echo "###########################################################################"
@@ -397,35 +379,6 @@ echo "Aktuell sind folgende Pins duch das Gerät $DEVICE in Verwendung:"
 lese_Wert ${VARIABLE}
 echo "$WERT"
 }
-
-# Umbau auf erweitere_Variable
-#Pin_belegen (){
-#DEVICE=$1
-##Neustart_notwendig
-#read -p "An welchen Pin soll das neue Gerät angeschlossen werden (Physikalische Notation) ?" pin
-## Prüft, ob ein Eintrag für das Device existiert
-#if grep ^${DEVICE}[=][0-9]?* /etc/pi-setup/pi.cfg
-#        then # Variable ist gesetzt
-#		lese_Wert ${DEVICE}
-#		LISTE="$WERT:$pin"
-#		echo $LISTE
-#		echo "Es wurde Pin $pin nun der Verwendung als Gerät $DEVICE zugewiesen"
-#		echo "Aktuell sind folgende Pins duch das Gerät $DEVICE in Verwendung:"
-#		echo "$LISTE"
-#		# Die erweitere Liste in Config-Datei schreiben
-#		sudo sed -i 's/'$DEVICE'.*$/'$DEVICE'='$LISTE'/' /etc/pi-setup/pi.cfg
-#        else
-#		echo "Es wurde Pin $pin nun der Verwendung als Gerät $DEVICE zugewiesen"
-#		# Hängt das neue Device mit dem zugewiesenen Pin an die Config-Datei an
-#		# Prüfen, ob ein Eintrag für das Device existiert
-#		if grep ^${DEVICE}=$ /etc/pi-setup/pi.cfg
-#			then # ... dann Eintrag ergänzen
-#				sudo sed -i 's/'$DEVICE'.*$/'$DEVICE'='$pin'/' /etc/pi-setup/pi.cfg
-#			else # ... sonst neue Zeile einfügen
-#				sudo bash -c 'echo "'${DEVICE}'='$pin'" >> /etc/pi-setup/pi.cfg'
-#		fi
-#fi
-#}
 
 
 # Verbleibt dauerhaft im Menü, bis beendet wird
