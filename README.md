@@ -2,7 +2,7 @@
 Organize a bunch of Raspberry Pis for a home automation.
 <img src=http://52.59.16.91:8080/wp-content/uploads/2017/01/The-Pi-Project.png alt="The-Pi-Project" style="width:200px;height:228px;">
 <br>
-**HOW TO START**
+**HOW TO START**<br>
 Copy the pi.cfg to /etc/pi-setup/ or change the pi.cfg location in the pi-setup.sh (line 3).<br>
 
 **-bewegungssensor.py--** <br>
