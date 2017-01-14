@@ -1,5 +1,6 @@
 #!/bin/bash
 DATE=`date +%Y-%m-%d:%H:%M:%S`
+global CONFFILE="/etc/pi-setup/pi.cfg"
 
 # Prüfen, ob bereits eine Einrichtung stattgefunden hat und ob eine Umgebungsvariable EBENE gesetzt ist
 EBENE=stage
@@ -9,7 +10,7 @@ if ! grep -q $EBENE /etc/pi-setup/pi.cfg
 		initialisiert=false
 		echo "initialisiert="$initialisiert>&2
         else
-		lade_Konfiguration ${EBENE}
+		lese_Wert ${EBENE}
 		echo ${WERT}	
 		echo 'System ist aktuell für Ebene ' $WERT ' eingerichtet'
 		initialisiert=true
@@ -26,7 +27,7 @@ echo "##########################################################################
 echo ""
 echo "Um eine konkurrierende Adressvergaben zu vermeiden, wird empfohlen, den DHCP Client Deamon aus zu schalten. Wird dies nicht getan, kann ein Interface mehrere IP-Adressen zugewiesen bekommen. Dies kann zu Problemen führen. Wenn DHCP nicht zwingend benötigt wird, wird empfohlen diesen zu deaktivieren."
 echo ""
-lade_Konfiguration "stage"
+lese_Wert "stage"
 echo "Was soll getan werden?
 (e)bene einrichten / ändern
 (n)etzwerk einrichten
@@ -48,7 +49,7 @@ case "$todo" in
         Ebene_aendern
 	;;
 	n)
-	lade_Konfiguration "stage"
+	lese_Wert "stage"
 	if [ initialisiert ]; then Netzwerk_Einrichten $WERT; else print "Zuerst muss das System für eine Ebene initialisiert werden!";fi
 	;;
 	d)
@@ -83,7 +84,7 @@ case "$todo" in
 	ssh_einrichten
 	;;
 	m)
-	lade_Konfiguration "stage"
+	lese_Wert "stage"
 	if [ initialisiert ]; then Name_anpassen $WERT; else print "Zuerst muss das System für eine Ebene initialisiert werden!";fi
 	;;
 	x)
@@ -266,7 +267,7 @@ if ! grep -q $DEVICE /etc/pi-setup/pi.cfg
                 echo "Die Variable existiert nicht. Es ist kein Pin ${DEVICE} ${DETAILS} zugeordnet."
         else
 		echo "Aktuell sind folgende Pins für den Gebrauch mit einem ${DEVICE} ${DETAILS} eingerichtet:"
-		lade_Konfiguration ${DEVICE}
+		lese_Wert ${DEVICE}
 		echo ${WERT}	
 fi
 
@@ -285,7 +286,40 @@ esac
 }
 
 
-lade_Konfiguration (){
+fuege_Wert_hinzu (){
+VARIABLE=$1
+WERT=$2
+
+}
+
+
+loesche_Wert (){
+VARIABLE=$1
+LOESCHEN=$2
+lese_Wert $VARIABLE
+# Inhalt in eine Datei schreiben
+echo ${WERT} > old
+# Nach der <pinnummer> als erster Wert suchen und löschen oder ...
+sed "s/^$LOESCHEN://"< old>new
+cp new old
+# ... nach :<pinnummer> in der mitte suchen und löschen oder ...
+sed "s/:$LOESCHEN:/:/"< old>new
+cp new old
+# ... wenn nur ein Eintrag vorhanden ist oder ...
+sed "s/^$LOESCHEN$//"< old>new
+cp new old
+# ... nach der <pinnummer> als letzten Wert suchen und löschen
+sed "s/:$LOESCHEN$//"< old>new
+# Neuer Wert aus Datei in das config File schreiben
+text="${VARIABLE}=$(cat new)"
+# Ersetzt die Variable durch den geänderten Eintrag
+sudo sed -i 's/'$VARIABLE'.*$/'$VARIABLE'='$(cat new)'/' /etc/pi-setup/pi.cfg
+#rm old, new
+
+}
+
+
+lese_Wert (){
 VARIABLE=$1
 echo "Lade Config File..." >&2
 source /etc/pi-setup/pi.cfg
@@ -296,31 +330,15 @@ WERT=${!VARIABLE} >&2
 
 Pin_entfernen (){
 DEVICE=$1
-#Neustart_notwendig
+lese_Wert ${DEVICE}
 # Prüft, ob ein Eintrag für das Device existiert
-#TODO LEERE prüfung ist noch an zu passen
-if ! grep -q $DEVICE /etc/pi-setup/pi.cfg
-        then # Wenn nein
-                echo "Die Variable existiert nicht. Es ist kein Pin ${DEVICE} zugeordnet."
-        else
-		lade_Konfiguration ${DEVICE}
+if grep ^${DEVICE}[=][0-9]?* /etc/pi-setup/pi.cfg
+#if ! grep -q $DEVICE=$ /etc/pi-setup/pi.cfg
+        then # Variable ist gesetzt
 		read -p "Welcher Pin soll aus der Liste entfernt werden (Physikalische Notation) ?" pin
-		# Inhalt in eine Datei schreiben
-		echo ${WERT} > old
-		# Nach der <pinnummer> als erster Wert suchen und löschen oder ...
-		sed "s/^$pin://"< old>new
-		cp new old
-		# ... nach :<pinnummer> in der mitte suchen und löschen oder ...
-		sed "s/:$pin:/:/"< old>new
-		# ... wenn nur ein Eintrag vorhanden ist oder ...
-		sed "s/^$pin$//"< old>new
-		# ... nach der <pinnummer> als letzten Wert suchen und löschen
-		sed "s/:$pin$//"< old>new
-		# Neuer Wert aus Datei in das config File schreiben
-		text="${DEVICE}=$(cat new)"
-                # Ersetzt die Variable durch den geänderten Eintrag
-		sudo sed -i 's/'$DEVICE'.*$/'$DEVICE'='$(cat new)'/' /etc/pi-setup/pi.cfg
-		rm old, new
+		loesche_Wert ${DEVICE} ${pin}
+        else
+                echo "Die Variable existiert nicht. Es ist kein Pin ${DEVICE} zugeordnet."
 fi
 }
 
@@ -344,19 +362,9 @@ DEVICE=$1
 #Neustart_notwendig
 read -p "An welchen Pin soll das neue Gerät angeschlossen werden (Physikalische Notation) ?" pin
 # Prüft, ob ein Eintrag für das Device existiert
-if ! grep -q $DEVICE /etc/pi-setup/pi.cfg
-        then # Wenn nein
-		echo "Es wurde Pin $pin nun der Verwendung als Gerät $DEVICE zugewiesen"
-		# Hängt das neue Device mit dem zugewiesenen Pin an die Config-Datei an
-		
-		sudo bash -c 'echo "'${DEVICE}'='$pin'" >> /etc/pi-setup/pi.cfg'
-        else
-		lade_Konfiguration ${DEVICE}
-		#echo "Lade Config File..." >&2
-		#source /etc/pi-setup/pi.cfg
-		## Bereits eingetragene Pins auslesen
-		#LISTE=${!DEVICE} >&2
-		# Neunen Pin durch : getrennt anhängen
+if grep ^${DEVICE}[=][0-9]?* /etc/pi-setup/pi.cfg
+        then # Variable ist gesetzt
+		lese_Wert ${DEVICE}
 		LISTE="$WERT:$pin"
 		echo $LISTE
 		echo "Es wurde Pin $pin nun der Verwendung als Gerät $DEVICE zugewiesen"
@@ -364,6 +372,16 @@ if ! grep -q $DEVICE /etc/pi-setup/pi.cfg
 		echo "$LISTE"
 		# Die erweitere Liste in Config-Datei schreiben
 		sudo sed -i 's/'$DEVICE'.*$/'$DEVICE'='$LISTE'/' /etc/pi-setup/pi.cfg
+        else
+		echo "Es wurde Pin $pin nun der Verwendung als Gerät $DEVICE zugewiesen"
+		# Hängt das neue Device mit dem zugewiesenen Pin an die Config-Datei an
+		# Prüfen, ob ein Eintrag für das Device existiert
+		if grep ^${DEVICE}=$ /etc/pi-setup/pi.cfg
+			then # ... dann Eintrag ergänzen
+				sudo sed -i 's/'$DEVICE'.*$/'$DEVICE'='$pin'/' /etc/pi-setup/pi.cfg
+			else # ... sonst neue Zeile einfügen
+				sudo bash -c 'echo "'${DEVICE}'='$pin'" >> /etc/pi-setup/pi.cfg'
+		fi
 fi
 }
 
