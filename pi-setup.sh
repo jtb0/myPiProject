@@ -1,22 +1,25 @@
 #!/bin/bash
 DATE=`date +%Y-%m-%d:%H:%M:%S`
-global CONFFILE="/etc/pi-setup/pi.cfg"
+CONFFILE="/etc/pi-setup/pi.cfg"
 
-# Prüfen, ob bereits eine Einrichtung stattgefunden hat und ob eine Umgebungsvariable EBENE gesetzt ist
+# Prüfen, ob bereits eine Einrichtung stattgefunden hat und ob eine Variable "stage" gesetzt ist
+init (){
 EBENE=stage
-if ! grep -q $EBENE /etc/pi-setup/pi.cfg
-        then # Wenn nein
-		echo "System ist noch nicht für eine Ebene eingerichtet"
-		initialisiert=false
-		echo "initialisiert="$initialisiert>&2
-        else
+lese_Wert ${EBENE}
+# Prüft, ob ein Eintrag für das Device existiert
+if grep ^${EBENE}[=][0-9]?* /etc/pi-setup/pi.cfg
+        then # Variable ist gesetzt
 		lese_Wert ${EBENE}
-		echo ${WERT}	
 		echo 'System ist aktuell für Ebene ' $WERT ' eingerichtet'
 		initialisiert=true
 		echo "initialisiert="$initialisiert>&2
-
+        else
+		echo "System ist noch nicht für eine Ebene eingerichtet"
+		initialisiert=false
+		echo "initialisiert="$initialisiert>&2
 fi
+}
+
 
 menue (){
 echo "###########################################################################"
@@ -25,6 +28,7 @@ echo "#                              pi-setup					#"
 echo "#										#"
 echo "###########################################################################"
 echo ""
+#init
 echo "Um eine konkurrierende Adressvergaben zu vermeiden, wird empfohlen, den DHCP Client Deamon aus zu schalten. Wird dies nicht getan, kann ein Interface mehrere IP-Adressen zugewiesen bekommen. Dies kann zu Problemen führen. Wenn DHCP nicht zwingend benötigt wird, wird empfohlen diesen zu deaktivieren."
 echo ""
 lese_Wert "stage"
@@ -50,7 +54,7 @@ case "$todo" in
 	;;
 	n)
 	lese_Wert "stage"
-	if [ initialisiert ]; then Netzwerk_Einrichten $WERT; else print "Zuerst muss das System für eine Ebene initialisiert werden!";fi
+	if [ ! -z $WERT ]; then Netzwerk_Einrichten $WERT; else print "Zuerst muss das System für eine Ebene initialisiert werden!";fi
 	;;
 	d)
 	DHCPCD_deaktivieren
@@ -67,7 +71,7 @@ case "$todo" in
         b) echo "Der Bewegungssensor wird eingerichtet..."
 	Device_verwalten "bewegungssensor" ""
 	;;
-        b) echo "Das Relais wird eingerichtet"
+        r) echo "Das Relais wird eingerichtet"
 	Device_verwalten "relais" "zum schalten externer Geräte"
 	;;
 	f) echo "Aktualisiere die Firmware ..."
@@ -93,26 +97,15 @@ case "$todo" in
 esac
 }
 	
-#TODO: auf conffile umstellen
+
 Ebene_aendern (){
 	echo "Bitte die Ebene des Hauses angeben, in dem der PI verwendet werden soll(für die Zentrale bitte die 9 angeben oder q zum Beenden)"
 	read -p " Nummer :" Ebene
-	ALL=false
-
-	if [ $initialisiert = true ]
-		then
-			echo "Eintrag der neuen Ebene wurde in todo  eingetragen"
-			#Ersetze die Nummer der Ebene 
-			export EBENE=$Ebene
-			sed -i 's/EBENE.*$/EBENE='$Ebene'/' /home/pi/.profile
-		else
-			echo "Eintrag der Ebene wurde in .profile vorgenommen"
-			#setze die Nummer der Ebene 
-			export EBENE=$Ebene
-			#Schreibe den Export in die .profile damit die Variable einen Neustart übersteht
-			echo "export EBENE=$Ebene" >> /home/pi/.profile
-	fi
+	echo "Eintrag der neuen Ebene wurde in todo  eingetragen"
+	#Ersetze die Nummer der Ebene 
+	setze_Variable "stage" $Ebene
 }
+
 
 Paket_installieren (){
 PAKET=$1
@@ -261,6 +254,7 @@ Device_verwalten () {
 DHT22_installieren
 DEVICE=$1
 DETAIL=$2
+echo $DEVICE $DETAIL
 # Prüft, ob ein Eintrag für das Device existiert
 if ! grep -q $DEVICE /etc/pi-setup/pi.cfg
         then # Wenn nein
@@ -356,93 +350,82 @@ echo ""
 echo ""
 }
 
+# Wenn eine Variable mit einem einzelnen Wert gesetzt werden soll. 
+setze_Variable (){
+VARIABLE=$1
+NEUERWERT=$2
+# Prüfen, ob ein Eintrag für das Device existiert
+if grep -q ^${VARIABLE}= /etc/pi-setup/pi.cfg
+	then # ... dann Eintrag ergänzen
+		sudo sed -i 's/'$VARIABLE'.*$/'$VARIABLE'='$NEUERWERT'/' /etc/pi-setup/pi.cfg
+	else # ... sonst neue Zeile einfügen
+		sudo bash -c 'echo "'${VARIABLE}'='$NEUERWERT'" >> /etc/pi-setup/pi.cfg'
+fi
+}
 
-Pin_belegen (){
-DEVICE=$1
-#Neustart_notwendig
-read -p "An welchen Pin soll das neue Gerät angeschlossen werden (Physikalische Notation) ?" pin
+
+# Wenn eine Variable mit einer Liste erweitert werden soll.
+erweitere_Variable (){
+VARIABLE=$1
+NEUERWERT=$2
 # Prüft, ob ein Eintrag für das Device existiert
-if grep ^${DEVICE}[=][0-9]?* /etc/pi-setup/pi.cfg
+if grep ^${VARIABLE}[=][0-9]?* /etc/pi-setup/pi.cfg
         then # Variable ist gesetzt
-		lese_Wert ${DEVICE}
-		LISTE="$WERT:$pin"
-		echo $LISTE
-		echo "Es wurde Pin $pin nun der Verwendung als Gerät $DEVICE zugewiesen"
-		echo "Aktuell sind folgende Pins duch das Gerät $DEVICE in Verwendung:"
-		echo "$LISTE"
+		lese_Wert ${VARIABLE}
+		LISTE="$WERT:$NEUERWERT"
 		# Die erweitere Liste in Config-Datei schreiben
-		sudo sed -i 's/'$DEVICE'.*$/'$DEVICE'='$LISTE'/' /etc/pi-setup/pi.cfg
+		sudo sed -i 's/'$VARIABLE'.*$/'$VARIABLE'='$LISTE'/' /etc/pi-setup/pi.cfg
         else
-		echo "Es wurde Pin $pin nun der Verwendung als Gerät $DEVICE zugewiesen"
-		# Hängt das neue Device mit dem zugewiesenen Pin an die Config-Datei an
 		# Prüfen, ob ein Eintrag für das Device existiert
-		if grep ^${DEVICE}=$ /etc/pi-setup/pi.cfg
+		if grep ^${VARIABLE}=$ /etc/pi-setup/pi.cfg
 			then # ... dann Eintrag ergänzen
-				sudo sed -i 's/'$DEVICE'.*$/'$DEVICE'='$pin'/' /etc/pi-setup/pi.cfg
+				sudo sed -i 's/'$VARIABLE'.*$/'$VARIABLE'='$NEUERWERT'/' /etc/pi-setup/pi.cfg
 			else # ... sonst neue Zeile einfügen
-				sudo bash -c 'echo "'${DEVICE}'='$pin'" >> /etc/pi-setup/pi.cfg'
+				sudo bash -c 'echo "'${VARIABLE}'='$NEUERWERT'" >> /etc/pi-setup/pi.cfg'
 		fi
 fi
 }
 
 
-
-# Auskommentierte Version, die die Umgebungsvariable nutzt
-#Pin_belegen (){
-#UVAR=$1
+Pin_belegen (){
+DEVICE=$1
 #Neustart_notwendig
-#read -p "An welchen Pin soll das neue Gerät angeschlossen werden (Physikalische Notation) ?" pin
-#if [ -z "${!UVAR}" ]
-#        then
-#		text="${UVAR}=$pin"
-#		export $text
-#		#export $UVAR="$pin"
-#		echo "Es wurde Pin $pin nun der Verwendung als Gerät $UVAR zugewiesen"
-#		#echo "export $UVAR=${!UVAR}" >> /home/pi/.profile
-#		echo "export $text" >> /home/pi/.profile
-#        else
-#		text="${UVAR}=${!UVAR}:$pin"
-#		echo $text
-#		export $text
-#		echo "Es wurde Pin $pin nun der Verwendung als Gerät $UVAR zugewiesen"
-#		echo "Aktuell sind folgende Pins duch das Gerät $UVAR in Verwendung:"
-#		echo "${!UVAR}"
-#		echo "Eintrag wurde in .profile eingetragen"
-#                # Ersetzt die Variable durch den geänderten Eintrag
-#		sed -i 's/'$UVAR'.*$/'$text'/' /home/pi/.profile
-#fi
-## Dafür sorgen, dass geänderte Umgebungsvariable in der aktuellen Sitzung bekannt sind
-#source ~/.profile
-#}
-
-DHT22_installieren () {
-echo "DHT22 wird installiert ..."
-PAKET="build-essential"
-Paket_installieren $PAKET
-PAKET="python-dev"
-Paket_installieren $PAKET
-PAKET="python-openssl"
-Paket_installieren $PAKET
-PAKET="git"
-Paket_installieren $PAKET
-# Wenn die Datei bereits vorhanden ist, wird nicht neu ausgecheckt
-if [ -f ~/Adafruit_Python_DHT/examples/AdafruitDHT.py ]
-	then
-		echo "Adafruit_Python_DHT bereits installiert"
-	else
-		git clone https://github.com/adafruit/Adafruit_Python_DHT.git && cd Adafruit_Python_DHT
-		sudo python setup.py install
-fi
-
-echo "-----------------INFO-----------------"
-echo "getestet werden kann der Sensor mit folgendem Aufruf:"
-echo ""
-echo "sudo ~/Adafruit_Python_DHT/examples/AdafruitDHT.py 22 4"
-echo ""
-echo "Wobei die 4 auf die Nummer des verwendeten PINs geändert werden muss"
-echo "---------------INFO-ENDE--------------"
+read -p "An welchen Pin soll das neue Gerät angeschlossen werden (Physikalische Notation) ?" PIN
+erweitere_Variable $DEVICE $PIN
+echo "Es wurde Pin $PIN nun der Verwendung als Gerät $DEVICE zugewiesen"
+echo "Aktuell sind folgende Pins duch das Gerät $DEVICE in Verwendung:"
+lese_Wert ${VARIABLE}
+echo "$WERT"
 }
 
+# Umbau auf erweitere_Variable
+#Pin_belegen (){
+#DEVICE=$1
+##Neustart_notwendig
+#read -p "An welchen Pin soll das neue Gerät angeschlossen werden (Physikalische Notation) ?" pin
+## Prüft, ob ein Eintrag für das Device existiert
+#if grep ^${DEVICE}[=][0-9]?* /etc/pi-setup/pi.cfg
+#        then # Variable ist gesetzt
+#		lese_Wert ${DEVICE}
+#		LISTE="$WERT:$pin"
+#		echo $LISTE
+#		echo "Es wurde Pin $pin nun der Verwendung als Gerät $DEVICE zugewiesen"
+#		echo "Aktuell sind folgende Pins duch das Gerät $DEVICE in Verwendung:"
+#		echo "$LISTE"
+#		# Die erweitere Liste in Config-Datei schreiben
+#		sudo sed -i 's/'$DEVICE'.*$/'$DEVICE'='$LISTE'/' /etc/pi-setup/pi.cfg
+#        else
+#		echo "Es wurde Pin $pin nun der Verwendung als Gerät $DEVICE zugewiesen"
+#		# Hängt das neue Device mit dem zugewiesenen Pin an die Config-Datei an
+#		# Prüfen, ob ein Eintrag für das Device existiert
+#		if grep ^${DEVICE}=$ /etc/pi-setup/pi.cfg
+#			then # ... dann Eintrag ergänzen
+#				sudo sed -i 's/'$DEVICE'.*$/'$DEVICE'='$pin'/' /etc/pi-setup/pi.cfg
+#			else # ... sonst neue Zeile einfügen
+#				sudo bash -c 'echo "'${DEVICE}'='$pin'" >> /etc/pi-setup/pi.cfg'
+#		fi
+#fi
+#}
 
 
 # Verbleibt dauerhaft im Menü, bis beendet wird
