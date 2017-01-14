@@ -14,7 +14,7 @@ The script reads all 60 seconds the temperature and humidity and send these info
 
 **-----pi-setup.sh-----** <br>
 This file helps you to setup all your Pis within the project.<br>
-**Features of v1.0.0**
+**Features**
 - Change the tier of the device
 - setup network
 - deactivate DHCPCD
@@ -28,14 +28,15 @@ This file helps you to setup all your Pis within the project.<br>
 - manage motion sensors 
   - assign gpio pins for the usage with a motion sensor
   - remove gpio pins from the usage with a motion sensor
+- manage relais
+  - assign gpio pins for the usage with a motion sensor
+  - remove gpio pins from the usage with a motion sensor
 - installation of standard software (at this time only vim) 
 - enable syntax highliting for vim
 
 **KNOWN ERRORS**
-- Not able to remove the last item of DHT22 and BEWEGUNGSSENSOR
+- No Known Errors
 
 **Comming soon**
-- Outsource the password and ssid information from pi-setup.sh file
-- Outsource the network information in to an environment variable and make it configurable
 - Merge dht22.py and bewegungssensor.py to a pi-slave.py file
 - Add further sensors 
