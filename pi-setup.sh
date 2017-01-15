@@ -48,13 +48,13 @@ case "$todo" in
 	sudo apt-get update && sudo apt-get upgrade -y
 	;;
         l) echo "Der DHT22 Sensor (Temperatur und Luftfeuchtesensor) wird eingerichtet..."
-	Device_verwalten "dht22" "Temperatur und Luftfeuchtesensor"
+	Device_verwalten "dht22" "Temperatur und Luftfeuchtesensor" "IN"
 	;;
         b) echo "Der Bewegungssensor wird eingerichtet..."
-	Device_verwalten "bewegungssensor" ""
+	Device_verwalten "bewegungssensor" "" "IN"
 	;;
         r) echo "Das Relais wird eingerichtet"
-	Device_verwalten "relais" "zum schalten externer Geräte"
+	Device_verwalten "relais" "zum schalten externer Geräte" "OUT"
 	;;
 	f) echo "Aktualisiere die Firmware ..."
 	Firmwareupdate_einrichten
@@ -236,6 +236,7 @@ Device_verwalten () {
 DHT22_installieren
 DEVICE=$1
 DETAIL=$2
+MODUS=$3
 echo $DEVICE $DETAIL
 # Prüft, ob ein Eintrag für das Device existiert
 if ! grep -q $DEVICE /etc/pi-setup/pi.cfg
@@ -250,7 +251,7 @@ fi
 read -p "Möchten Sie (n)eue $DEVICE hinzufügen, vorhandene (e)ntfernen oder (z)urück?: " todo
 case "$todo" in
         n)
-        Pin_belegen $DEVICE
+        Pin_belegen $DEVICE $MODUS
         ;;
 	e)
         Pin_entfernen $DEVICE
@@ -371,6 +372,7 @@ fi
 
 Pin_belegen (){
 DEVICE=$1
+MODUS=$2
 #Neustart_notwendig
 read -p "An welchen Pin soll das neue Gerät angeschlossen werden (Physikalische Notation) ?" PIN
 erweitere_Variable $DEVICE $PIN
@@ -378,6 +380,8 @@ echo "Es wurde Pin $PIN nun der Verwendung als Gerät $DEVICE zugewiesen"
 echo "Aktuell sind folgende Pins duch das Gerät $DEVICE in Verwendung:"
 lese_Wert ${VARIABLE}
 echo "$WERT"
+# setze den Mode des Pin auf "IN" oder "OUT" (-1 setzt den Interpreter auf physikalische Adresse)
+gpio -1 mode $PIN $MODUS
 }
 
 
