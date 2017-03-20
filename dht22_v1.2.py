@@ -39,7 +39,7 @@ GPIO.setmode(GPIO.BOARD)
 # Alle übergebenen Pins als Eingänge festlegen
 #for arg in sys.argv[1:]:
 for arg in ListOfDht22:
-    pin = arg
+    pin = int(arg)
     GPIO.setup(pin, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
 # Schleifenzähler
 i = 0
