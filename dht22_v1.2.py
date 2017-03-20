@@ -53,7 +53,7 @@ while 1:
         # Für jeden übergebenen Pin (an dem ein Sensor angeschlossen ist)
         #for arg in sys.argv[1:]:
         for arg in ListOfDht22:
-            pin = arg
+            pin = int(arg)
             print "lese Sensor aus"
             # Sensor auslesen
             humidity, temperature = Adafruit_DHT.read_retry(sensor, pin)
