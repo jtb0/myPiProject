@@ -85,7 +85,7 @@ Ebene_aendern (){
 	read -p " Nummer :" Ebene
 	echo "Eintrag der neuen Ebene wurde in todo  eingetragen"
 	#Ersetze die Nummer der Ebene 
-	setze_Variable "stage" $Ebene
+	setze_Variable "common" "stage" $Ebene
 }
 
 
@@ -277,16 +277,16 @@ lese_Wert $VARIABLE
 # Inhalt in eine Datei schreiben
 echo ${WERT} > old
 # Nach der <pinnummer> als erster Wert suchen und löschen oder ...
-sed "s/^$LOESCHEN://"< old>new
+sed "s/^$LOESCHEN,//"< old>new
 cp new old
 # ... nach :<pinnummer> in der mitte suchen und löschen oder ...
-sed "s/:$LOESCHEN:/:/"< old>new
+sed "s/,$LOESCHEN,/,/"< old>new
 cp new old
 # ... wenn nur ein Eintrag vorhanden ist oder ...
 sed "s/^$LOESCHEN$//"< old>new
 cp new old
 # ... nach der <pinnummer> als letzten Wert suchen und löschen
-sed "s/:$LOESCHEN$//"< old>new
+sed "s/,$LOESCHEN$//"< old>new
 # Neuer Wert aus Datei in das config File schreiben
 text="${VARIABLE}=$(cat new)"
 # Ersetzt die Variable durch den geänderten Eintrag
@@ -335,15 +335,10 @@ echo ""
 
 # Wenn eine Variable mit einem einzelnen Wert gesetzt werden soll. 
 setze_Variable (){
-VARIABLE=$1
-NEUERWERT=$2
-# Prüfen, ob ein Eintrag für das Device existiert
-if grep -q ^${VARIABLE}= /etc/pi-setup/pi.cfg
-	then # ... dann Eintrag ergänzen
-		sudo sed -i 's/'$VARIABLE'.*$/'$VARIABLE'='$NEUERWERT'/' /etc/pi-setup/pi.cfg
-	else # ... sonst neue Zeile einfügen
-		sudo bash -c 'echo "'${VARIABLE}'='$NEUERWERT'" >> /etc/pi-setup/pi.cfg'
-fi
+SECTION=$1
+VARIABLE=$2
+NEUERWERT=$3
+python editConffile.py $CONFFILE set $SECTION $VARIABLE $NEUERWERT
 }
 
 
@@ -355,7 +350,7 @@ NEUERWERT=$2
 if grep ^${VARIABLE}[=][0-9]?* /etc/pi-setup/pi.cfg
         then # Variable ist gesetzt
 		lese_Wert ${VARIABLE}
-		LISTE="$WERT:$NEUERWERT"
+		LISTE="$WERT,$NEUERWERT"
 		# Die erweitere Liste in Config-Datei schreiben
 		sudo sed -i 's/'$VARIABLE'.*$/'$VARIABLE'='$LISTE'/' /etc/pi-setup/pi.cfg
         else
