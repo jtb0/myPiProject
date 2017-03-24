@@ -1,6 +1,7 @@
 #!/bin/bash
 DATE=`date +%Y-%m-%d:%H:%M:%S`
-CONFFILE="/etc/pi-setup/pi.cfg"
+#CONFFILE="/etc/pi-setup/pi.cfg"
+CONFFILE="pi2.cfg"
 
 
 menue (){
@@ -13,7 +14,7 @@ echo ""
 #init
 echo "Um eine konkurrierende Adressvergaben zu vermeiden, wird empfohlen, den DHCP Client Deamon aus zu schalten. Wird dies nicht getan, kann ein Interface mehrere IP-Adressen zugewiesen bekommen. Dies kann zu Problemen führen. Wenn DHCP nicht zwingend benötigt wird, wird empfohlen diesen zu deaktivieren."
 echo ""
-lese_Wert "stage"
+lese_Wert "stage" "common"
 echo "Was soll getan werden?
 (e)bene einrichten / ändern
 (n)etzwerk einrichten
@@ -35,7 +36,7 @@ case "$todo" in
         Ebene_aendern
 	;;
 	n)
-	lese_Wert "stage"
+	lese_Wert "stage" "common"
 	if [ ! -z $WERT ]; then Netzwerk_Einrichten $WERT; else print "Zuerst muss das System für eine Ebene initialisiert werden!";fi
 	;;
 	d)
@@ -70,7 +71,7 @@ case "$todo" in
 	ssh_einrichten
 	;;
 	m)
-	lese_Wert "stage"
+	lese_Wert "stage" "common"
 	if [ initialisiert ]; then Name_anpassen $WERT; else print "Zuerst muss das System für eine Ebene initialisiert werden!";fi
 	;;
 	x)
@@ -237,24 +238,25 @@ DHT22_installieren
 DEVICE=$1
 DETAIL=$2
 MODUS=$3
+SECTION="things"
 echo $DEVICE $DETAIL
 # Prüft, ob ein Eintrag für das Device existiert
-if ! grep -q $DEVICE /etc/pi-setup/pi.cfg
-        then # Wenn nein
-                echo "Die Variable existiert nicht. Es ist kein Pin ${DEVICE} ${DETAILS} zugeordnet."
-        else
-		echo "Aktuell sind folgende Pins für den Gebrauch mit einem ${DEVICE} ${DETAILS} eingerichtet:"
-		lese_Wert ${DEVICE}
-		echo ${WERT}	
-fi
+#if ! grep -q $DEVICE $CONFFILE
+#        then # Wenn nein
+#                echo "Die Variable existiert nicht. Es ist kein Pin ${DEVICE} ${DETAILS} zugeordnet."
+#        else
+#		echo "Aktuell sind folgende Pins für den Gebrauch mit einem ${DEVICE} ${DETAILS} eingerichtet:"
+#		lese_Wert ${DEVICE} $SECTION
+#		echo ${WERT}	
+#fi
 
 read -p "Möchten Sie (n)eue $DEVICE hinzufügen, vorhandene (e)ntfernen oder (z)urück?: " todo
 case "$todo" in
         n)
-        Pin_belegen $DEVICE $MODUS
+        Pin_belegen $DEVICE $MODUS $SECTION
         ;;
 	e)
-        Pin_entfernen $DEVICE
+        Pin_entfernen $DEVICE $SECTION
 	;;
 	z)
 	menue
@@ -271,52 +273,64 @@ WERT=$2
 
 
 loesche_Wert (){
-VARIABLE=$1
-LOESCHEN=$2
-lese_Wert $VARIABLE
+VARIABLE=$1 #DEVICE
+VALUE=$2    #PIN der gelöscht werden soll
+SECTION=$3  #SECTION
+python editConffile.py $CONFFILE delete $SECTION $VARIABLE $VALUE
+
+
+
+#lese_Wert $VARIABLE $SECTION
 # Inhalt in eine Datei schreiben
-echo ${WERT} > old
+#echo ${WERT} > old
 # Nach der <pinnummer> als erster Wert suchen und löschen oder ...
-sed "s/^$LOESCHEN,//"< old>new
-cp new old
+#sed "s/^$LOESCHEN,//"< old>new
+#cp new old
 # ... nach :<pinnummer> in der mitte suchen und löschen oder ...
-sed "s/,$LOESCHEN,/,/"< old>new
-cp new old
+#sed "s/,$LOESCHEN,/,/"< old>new
+#cp new old
 # ... wenn nur ein Eintrag vorhanden ist oder ...
-sed "s/^$LOESCHEN$//"< old>new
-cp new old
+#sed "s/^$LOESCHEN$//"< old>new
+#cp new old
 # ... nach der <pinnummer> als letzten Wert suchen und löschen
-sed "s/,$LOESCHEN$//"< old>new
+#sed "s/,$LOESCHEN$//"< old>new
 # Neuer Wert aus Datei in das config File schreiben
-text="${VARIABLE}=$(cat new)"
+#text="${VARIABLE}=$(cat new)"
 # Ersetzt die Variable durch den geänderten Eintrag
-sudo sed -i 's/'$VARIABLE'.*$/'$VARIABLE'='$(cat new)'/' /etc/pi-setup/pi.cfg
-#rm old, new
+#sudo sed -i 's/'$VARIABLE'.*$/'$VARIABLE'='$(cat new)'/' /etc/pi-setup/pi.cfg
+##rm old, new
 
 }
 
 
 lese_Wert (){
 VARIABLE=$1
-echo "Lade Config File..." >&2
-source /etc/pi-setup/pi.cfg
-# Bereits eingetragene Pins auslesen
-WERT=${!VARIABLE} >&2
+SECTION=$2
+WERT=$(python editConffile.py $CONFFILE get $SECTION $VARIABLE "nix")
+
+echo "Wert ist:"
+echo $WERT
+
+#echo "Lade Config File..." >&2
+#source /etc/pi-setup/pi.cfg
+## Bereits eingetragene Pins auslesen
+#WERT=${!VARIABLE} >&2
 }
 
 
 Pin_entfernen (){
 DEVICE=$1
-lese_Wert ${DEVICE}
+SECTION=$2
+lese_Wert ${DEVICE} ${SECTION}
 # Prüft, ob ein Eintrag für das Device existiert
-if grep ^${DEVICE}[=][0-9]?* /etc/pi-setup/pi.cfg
+#if grep ^${DEVICE}[=][0-9]?* ${CONFFILE}
 #if ! grep -q $DEVICE=$ /etc/pi-setup/pi.cfg
-        then # Variable ist gesetzt
+#        then # Variable ist gesetzt
 		read -p "Welcher Pin soll aus der Liste entfernt werden (Physikalische Notation) ?" pin
-		loesche_Wert ${DEVICE} ${pin}
-        else
-                echo "Die Variable existiert nicht. Es ist kein Pin ${DEVICE} zugeordnet."
-fi
+		loesche_Wert ${DEVICE} ${pin} $SECTION
+#        else
+#                echo "Die Variable existiert nicht. Es ist kein Pin ${DEVICE} zugeordnet."
+#fi
 }
 
 
@@ -338,42 +352,49 @@ setze_Variable (){
 SECTION=$1
 VARIABLE=$2
 NEUERWERT=$3
+#python editConffile.py $CONFFILE set $SECTION $VARIABLE $NEUERWERT
 python editConffile.py $CONFFILE set $SECTION $VARIABLE $NEUERWERT
 }
 
 
 # Wenn eine Variable mit einer Liste erweitert werden soll.
 erweitere_Variable (){
+echo "erweitere_Variable"
 VARIABLE=$1
 NEUERWERT=$2
+SECTION=$3
 # Prüft, ob ein Eintrag für das Device existiert
-if grep ^${VARIABLE}[=][0-9]?* /etc/pi-setup/pi.cfg
-        then # Variable ist gesetzt
-		lese_Wert ${VARIABLE}
-		LISTE="$WERT,$NEUERWERT"
-		# Die erweitere Liste in Config-Datei schreiben
-		sudo sed -i 's/'$VARIABLE'.*$/'$VARIABLE'='$LISTE'/' /etc/pi-setup/pi.cfg
-        else
-		# Prüfen, ob ein Eintrag für das Device existiert
-		if grep ^${VARIABLE}=$ /etc/pi-setup/pi.cfg
-			then # ... dann Eintrag ergänzen
-				sudo sed -i 's/'$VARIABLE'.*$/'$VARIABLE'='$NEUERWERT'/' /etc/pi-setup/pi.cfg
-			else # ... sonst neue Zeile einfügen
-				sudo bash -c 'echo "'${VARIABLE}'='$NEUERWERT'" >> /etc/pi-setup/pi.cfg'
-		fi
-fi
+python editConffile.py $CONFFILE append $SECTION $VARIABLE $NEUERWERT
+
+
+#if grep ^${VARIABLE}[=][0-9]?* /etc/pi-setup/pi.cfg
+#        then # Variable ist gesetzt
+#		lese_Wert ${VARIABLE}
+#		LISTE="$WERT,$NEUERWERT"
+#		# Die erweitere Liste in Config-Datei schreiben
+#		sudo sed -i 's/'$VARIABLE'.*$/'$VARIABLE'='$LISTE'/' /etc/pi-setup/pi.cfg
+#        else
+#		# Prüfen, ob ein Eintrag für das Device existiert
+#		if grep ^${VARIABLE}=$ /etc/pi-setup/pi.cfg
+#			then # ... dann Eintrag ergänzen
+#				sudo sed -i 's/'$VARIABLE'.*$/'$VARIABLE'='$NEUERWERT'/' /etc/pi-setup/pi.cfg
+#			else # ... sonst neue Zeile einfügen
+#				sudo bash -c 'echo "'${VARIABLE}'='$NEUERWERT'" >> /etc/pi-setup/pi.cfg'
+#		fi
+#fi
 }
 
 
 Pin_belegen (){
 DEVICE=$1
 MODUS=$2
+SECTION=$3
 #Neustart_notwendig
 read -p "An welchen Pin soll das neue Gerät angeschlossen werden (Physikalische Notation) ?" PIN
-erweitere_Variable $DEVICE $PIN
+erweitere_Variable $DEVICE $PIN $SECTION
 echo "Es wurde Pin $PIN nun der Verwendung als Gerät $DEVICE zugewiesen"
 echo "Aktuell sind folgende Pins duch das Gerät $DEVICE in Verwendung:"
-lese_Wert ${VARIABLE}
+lese_Wert ${VARIABLE} $SECTION
 echo "$WERT"
 # setze den Mode des Pin auf "IN" oder "OUT" (-1 setzt den Interpreter auf physikalische Adresse)
 gpio -1 mode $PIN $MODUS
