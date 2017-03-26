@@ -10,7 +10,7 @@
 import sys
 import ConfigParser
 
-DEBUG="true"
+DEBUG="false"
 true="true"
 
 conffile=sys.argv[1]
@@ -47,10 +47,14 @@ def optionSet(conffile, section, variable, value):
 
 if (option == "set"): optionSet(conffile, section, variable, value)
 
-if (option == "get") : 
+
+def optionGet(conffile, section, variable):
     if (DEBUG == true) : print "get-Block:"
     print cp.get(str(section), str(variable))
+    return cp.get(str(section), str(variable))
     if (DEBUG == true) : print "end"
+
+if (option == "get"): optionGet(conffile, section, variable)
 
 
 def optionAppend(conffile, section, variable, value):

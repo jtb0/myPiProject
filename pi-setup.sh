@@ -1,7 +1,7 @@
 #!/bin/bash
 DATE=`date +%Y-%m-%d:%H:%M:%S`
-#CONFFILE="/etc/pi-setup/pi.cfg"
-CONFFILE="pi2.cfg"
+CONFFILE="/etc/pi-setup/pi.cfg"
+#CONFFILE="pi2.cfg"
 
 
 menue (){
