@@ -29,8 +29,8 @@ This file helps you to setup all your Pis within the project.<br>
   - assign gpio pins for the usage with a motion sensor
   - remove gpio pins from the usage with a motion sensor
 - manage relais
-  - assign gpio pins for the usage with a motion sensor
-  - remove gpio pins from the usage with a motion sensor
+  - assign gpio pins for the usage with a relais
+  - remove gpio pins from the usage with a relais
 - installation of standard software (at this time only vim) 
 - enable syntax highliting for vim
 
