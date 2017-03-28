@@ -189,10 +189,20 @@ Netzwerk_Einrichten () {
 echo "Das Netzwerk wird eingerichtet ..."
 sudo mv /etc/network/interfaces /etc/network/interfaces-$DATE.orig
 echo "Lade Config File..." >&2
-source /etc/pi-setup/pi.cfg
-SSID=$wpa_ssid >&2
-PSK=$wpa_psk >&2
-NETZWERK=$network >&2
+
+lese_Wert "network" "network"
+# Delete the quote " at the beginning of the string
+NETWORK=${WERT:1}
+# Delete the quote " at the beginning of the string
+NETWORK=${NETWORK::-1}
+lese_Wert "wpa_ssid" "network"
+SSID=$WERT
+lese_Wert "wpa_psk" "network"
+PSK=$WERT
+#source /etc/pi-setup/pi.cfg
+#SSID=$wpa_ssid >&2
+#PSK=$wpa_psk >&2
+#NETZWERK=$network >&2
 Text='
 source-directory /etc/network/interfaces.d \n
  \n
@@ -203,21 +213,21 @@ iface lo inet loopback\n
 #allow-hotplug wlan0\n
 auto wlan0\n
 iface wlan0 inet static\n
-wpa-ssid "'$SSID'"\n
-wpa-psk "'$PSK'"\n
-address '$NETZWERK''$1'1\n
+wpa-ssid '$SSID'\n
+wpa-psk '$PSK'\n
+address '$NETWORK''$1'1\n
 netmask 255.255.255.0\n
-gateway '$NETZWERK'1\n
-dns-nameservers '$NETZWERK'1\n
+gateway '$NETWORK'1\n
+dns-nameservers '$NETWORK'1\n
 \n
 # Ethernet\n
 auto eth0\n
 allow-hotplug eth0\n
 iface eth0 inet static\n
-address '$NETZWERK''$1'0\n
+address '$NETWORK''$1'0\n
 netmask 255.255.255.0\n
-gateway '$NETZWERK'1\n
-dns-nameservers '$NETZWERK'1\n
+gateway '$NETWORK'1\n
+dns-nameservers '$NETWORK'1\n
 ' 
 sudo echo -e $Text | sudo tee -a /etc/network/interfaces
 }
@@ -240,15 +250,6 @@ DETAIL=$2
 MODUS=$3
 SECTION="things"
 echo $DEVICE $DETAIL
-# Prüft, ob ein Eintrag für das Device existiert
-#if ! grep -q $DEVICE $CONFFILE
-#        then # Wenn nein
-#                echo "Die Variable existiert nicht. Es ist kein Pin ${DEVICE} ${DETAILS} zugeordnet."
-#        else
-#		echo "Aktuell sind folgende Pins für den Gebrauch mit einem ${DEVICE} ${DETAILS} eingerichtet:"
-#		lese_Wert ${DEVICE} $SECTION
-#		echo ${WERT}	
-#fi
 
 read -p "Möchten Sie (n)eue $DEVICE hinzufügen, vorhandene (e)ntfernen oder (z)urück?: " todo
 case "$todo" in
@@ -264,7 +265,7 @@ case "$todo" in
 esac
 }
 
-
+#TODO: Prüfe ob verwendet wird
 fuege_Wert_hinzu (){
 VARIABLE=$1
 WERT=$2
@@ -277,29 +278,6 @@ VARIABLE=$1 #DEVICE
 VALUE=$2    #PIN der gelöscht werden soll
 SECTION=$3  #SECTION
 python editConffile.py $CONFFILE delete $SECTION $VARIABLE $VALUE
-
-
-
-#lese_Wert $VARIABLE $SECTION
-# Inhalt in eine Datei schreiben
-#echo ${WERT} > old
-# Nach der <pinnummer> als erster Wert suchen und löschen oder ...
-#sed "s/^$LOESCHEN,//"< old>new
-#cp new old
-# ... nach :<pinnummer> in der mitte suchen und löschen oder ...
-#sed "s/,$LOESCHEN,/,/"< old>new
-#cp new old
-# ... wenn nur ein Eintrag vorhanden ist oder ...
-#sed "s/^$LOESCHEN$//"< old>new
-#cp new old
-# ... nach der <pinnummer> als letzten Wert suchen und löschen
-#sed "s/,$LOESCHEN$//"< old>new
-# Neuer Wert aus Datei in das config File schreiben
-#text="${VARIABLE}=$(cat new)"
-# Ersetzt die Variable durch den geänderten Eintrag
-#sudo sed -i 's/'$VARIABLE'.*$/'$VARIABLE'='$(cat new)'/' /etc/pi-setup/pi.cfg
-##rm old, new
-
 }
 
 
